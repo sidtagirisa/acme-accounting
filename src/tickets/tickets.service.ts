@@ -26,7 +26,11 @@ export class TicketsService {
       category: TicketCategory.corporate,
       userRole: UserRole.corporateSecretary,
       backupUserRole: UserRole.director,
-    }
+    },
+    [TicketType.strikeOff]: {
+      category: TicketCategory.management,
+      userRole: UserRole.director
+    },
   };
 
   getTicketTypeMapping(type: TicketType): TicketTypeMapping {
