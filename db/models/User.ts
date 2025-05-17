@@ -6,6 +6,8 @@ import {
   ForeignKey,
   PrimaryKey,
   AutoIncrement,
+  CreatedAt,
+  UpdatedAt,
 } from 'sequelize-typescript';
 import { Company } from './Company';
 
@@ -33,4 +35,10 @@ export class User extends Model {
 
   @BelongsTo(() => Company)
   company: Company;
+
+  @CreatedAt
+  declare createdAt: Date;
+  
+  @UpdatedAt
+  declare updatedAt: Date;
 }
