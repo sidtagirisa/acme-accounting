@@ -2,6 +2,7 @@ import { ConflictException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Company } from '../../db/models/Company';
 import {
+  Ticket,
   TicketCategory,
   TicketStatus,
   TicketType,
@@ -24,6 +25,11 @@ describe('TicketsController', () => {
 
     controller = module.get<TicketsController>(TicketsController);
     service = module.get<TicketsService>(TicketsService);
+
+    // Clean up database before each test to ensure isolation
+    await Ticket.destroy({ where: {} });
+    await User.destroy({ where: {} });
+    await Company.destroy({ where: {} });
   });
 
   it('should be defined', async () => {
