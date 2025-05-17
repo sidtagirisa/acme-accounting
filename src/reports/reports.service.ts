@@ -15,7 +15,10 @@ export class ReportsService implements OnModuleInit {
   private pollingInterval = 60000; // 60 seconds
 
   onModuleInit() {
-    this.startPolling();
+    // Prevent polling during tests to avoid interference
+    if (process.env.NODE_ENV !== 'test') {
+      this.startPolling();
+    }
   }
 
   private startPolling() {
