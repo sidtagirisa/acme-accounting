@@ -15,11 +15,16 @@ export class ReportsController {
   }
 
   @Post()
-  @HttpCode(201)
+  @HttpCode(202)
   generate() {
-    this.reportsService.accounts();
-    this.reportsService.yearly();
-    this.reportsService.fs();
-    return { message: 'finished' };
+    Promise.resolve().then(() => {
+      this.reportsService.accounts();
+      this.reportsService.yearly();
+      this.reportsService.fs();
+    }).catch(error => {
+      console.error('Error during report generation:', error);
+    });
+
+    return { message: 'Report generation started in the background' };
   }
 }
