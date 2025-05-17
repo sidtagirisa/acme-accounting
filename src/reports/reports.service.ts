@@ -1,5 +1,6 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import fs from 'fs';
+import fsPromises from 'fs/promises';
 import path from 'path';
 import { performance } from 'perf_hooks';
 import { v4 as uuidv4 } from 'uuid';
@@ -140,16 +141,17 @@ export class ReportsService implements OnModuleInit {
     const outputFile = `${outputDir}/accounts.csv`;
     const accountBalances: Record<string, number> = {};
 
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir, { recursive: true });
+    try {
+      await fsPromises.access(outputDir);
+    } catch (error) {
+      await fsPromises.mkdir(outputDir, { recursive: true });
     }
 
-    fs.readdirSync(tmpDir).forEach((file) => {
+    const files = await fsPromises.readdir(tmpDir);
+    for (const file of files) {
       if (file.endsWith('.csv')) {
-        const lines = fs
-          .readFileSync(path.join(tmpDir, file), 'utf-8')
-          .trim()
-          .split('\n');
+        const fileContent = await fsPromises.readFile(path.join(tmpDir, file), 'utf-8');
+        const lines = fileContent.trim().split('\n');
         for (const line of lines) {
           const [, account, , debit, credit] = line.split(',');
           if (!accountBalances[account]) {
@@ -159,12 +161,12 @@ export class ReportsService implements OnModuleInit {
             parseFloat(String(debit || 0)) - parseFloat(String(credit || 0));
         }
       }
-    });
+    }
     const output = ['Account,Balance'];
     for (const [account, balance] of Object.entries(accountBalances)) {
       output.push(`${account},${balance.toFixed(2)}`);
     }
-    fs.writeFileSync(outputFile, output.join('\n'));
+    await fsPromises.writeFile(outputFile, output.join('\n'));
     
     const processingTime = Math.round(performance.now() - start);
     await Report.update(
@@ -194,16 +196,17 @@ export class ReportsService implements OnModuleInit {
     const outputFile = `${outputDir}/yearly.csv`;
     const cashByYear: Record<string, number> = {};
 
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir, { recursive: true });
+    try {
+      await fsPromises.access(outputDir);
+    } catch (error) {
+      await fsPromises.mkdir(outputDir, { recursive: true });
     }
 
-    fs.readdirSync(tmpDir).forEach((file) => {
+    const files = await fsPromises.readdir(tmpDir);
+    for (const file of files) {
       if (file.endsWith('.csv') && file !== 'yearly.csv') {
-        const lines = fs
-          .readFileSync(path.join(tmpDir, file), 'utf-8')
-          .trim()
-          .split('\n');
+        const fileContent = await fsPromises.readFile(path.join(tmpDir, file), 'utf-8');
+        const lines = fileContent.trim().split('\n');
         for (const line of lines) {
           const [date, account, , debit, credit] = line.split(',');
           if (account === 'Cash') {
@@ -216,14 +219,14 @@ export class ReportsService implements OnModuleInit {
           }
         }
       }
-    });
+    }
     const output = ['Financial Year,Cash Balance'];
     Object.keys(cashByYear)
       .sort()
       .forEach((year) => {
         output.push(`${year},${cashByYear[year].toFixed(2)}`);
       });
-    fs.writeFileSync(outputFile, output.join('\n'));
+    await fsPromises.writeFile(outputFile, output.join('\n'));
     
     const processingTime = Math.round(performance.now() - start);
     await Report.update(
@@ -283,8 +286,10 @@ export class ReportsService implements OnModuleInit {
       },
     };
 
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir, { recursive: true });
+    try {
+      await fsPromises.access(outputDir);
+    } catch (error) {
+      await fsPromises.mkdir(outputDir, { recursive: true });
     }
 
     const balances: Record<string, number> = {};
@@ -295,12 +300,11 @@ export class ReportsService implements OnModuleInit {
         }
       }
     }
-    fs.readdirSync(tmpDir).forEach((file) => {
+    const files = await fsPromises.readdir(tmpDir);
+    for (const file of files) {
       if (file.endsWith('.csv') && file !== 'fs.csv') {
-        const lines = fs
-          .readFileSync(path.join(tmpDir, file), 'utf-8')
-          .trim()
-          .split('\n');
+        const fileContent = await fsPromises.readFile(path.join(tmpDir, file), 'utf-8');
+        const lines = fileContent.trim().split('\n');
 
         for (const line of lines) {
           const [, account, , debit, credit] = line.split(',');
@@ -311,7 +315,7 @@ export class ReportsService implements OnModuleInit {
           }
         }
       }
-    });
+    }
 
     const output: string[] = [];
     output.push('Basic Financial Statement');
@@ -366,7 +370,7 @@ export class ReportsService implements OnModuleInit {
     output.push(
       `Assets = Liabilities + Equity, ${totalAssets.toFixed(2)} = ${(totalLiabilities + totalEquity).toFixed(2)}`,
     );
-    fs.writeFileSync(outputFile, output.join('\n'));
+    await fsPromises.writeFile(outputFile, output.join('\n'));
     
     const processingTime = Math.round(performance.now() - start);
     await Report.update(
