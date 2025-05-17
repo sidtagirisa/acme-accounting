@@ -7,6 +7,7 @@ import {
   TicketType,
 } from '../../db/models/Ticket';
 import { User, UserRole } from '../../db/models/User';
+import { TicketsService } from './tickets.service';
 
 interface newTicketDto {
   type: TicketType;
@@ -24,24 +25,17 @@ interface TicketDto {
 
 @Controller('api/v1/tickets')
 export class TicketsController {
+  constructor(private readonly ticketsService: TicketsService) {}
+
   @Get()
   async findAll() {
-    return await Ticket.findAll({ include: [Company, User] });
+    return await this.ticketsService.findAll();
   }
 
   @Post()
   async create(@Body() newTicketDto: newTicketDto) {
     const { type, companyId } = newTicketDto;
-
-    const category =
-      type === TicketType.managementReport
-        ? TicketCategory.accounting
-        : TicketCategory.corporate;
-
-    const userRole =
-      type === TicketType.managementReport
-        ? UserRole.accountant
-        : UserRole.corporateSecretary;
+    const { category, userRole } = this.ticketsService.getTicketTypeMapping(type);
 
     const assignees = await User.findAll({
       where: { companyId, role: userRole },
