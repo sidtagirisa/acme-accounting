@@ -1,7 +1,5 @@
-import { Body, ConflictException, Controller, Get, Post } from '@nestjs/common';
-import { Company } from '../../db/models/Company';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 import {
-  Ticket,
   TicketCategory,
   TicketStatus,
   TicketType,
@@ -34,9 +32,9 @@ export class TicketsController {
   @Post()
   async create(@Body() newTicketDto: newTicketDto) {
     const { type, companyId } = newTicketDto;
-    
+
     const ticket = await this.ticketsService.createTicket(type, companyId);
-    
+
     // Map to DTO for response
     const ticketDto: TicketDto = {
       id: ticket.id,

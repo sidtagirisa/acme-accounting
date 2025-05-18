@@ -4,12 +4,11 @@ import { ReportsService } from './reports.service';
 
 describe('ReportsController', () => {
   let controller: ReportsController;
-  let service: ReportsService;
 
   // Mock ReportsService
   const mockReportsService = {
     state: jest.fn(),
-    generateIdAndStoreReportEntries: jest.fn()
+    generateIdAndStoreReportEntries: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -18,14 +17,13 @@ describe('ReportsController', () => {
       providers: [
         {
           provide: ReportsService,
-          useValue: mockReportsService
-        }
+          useValue: mockReportsService,
+        },
       ],
     }).compile();
 
     controller = module.get<ReportsController>(ReportsController);
-    service = module.get<ReportsService>(ReportsService);
-    
+
     // Reset mock function calls and return values before each test
     jest.clearAllMocks();
   });
@@ -38,8 +36,10 @@ describe('ReportsController', () => {
     it('should return report status for all report types', async () => {
       // Arrange
       const mockRequestId = 'test-uuid-1234';
-      mockReportsService.state.mockImplementation((type, requestId) => {
-        return Promise.resolve(`finished in 0.${type === 'accounts' ? '69' : type === 'yearly' ? '48' : '71'}`);
+      mockReportsService.state.mockImplementation((type) => {
+        return Promise.resolve(
+          `finished in 0.${type === 'accounts' ? '69' : type === 'yearly' ? '48' : '71'}`,
+        );
       });
 
       // Act
@@ -50,13 +50,22 @@ describe('ReportsController', () => {
         requestId: mockRequestId,
         'accounts.csv': 'finished in 0.69',
         'yearly.csv': 'finished in 0.48',
-        'fs.csv': 'finished in 0.71'
+        'fs.csv': 'finished in 0.71',
       });
 
       expect(mockReportsService.state).toHaveBeenCalledTimes(3);
-      expect(mockReportsService.state).toHaveBeenCalledWith('accounts', mockRequestId);
-      expect(mockReportsService.state).toHaveBeenCalledWith('yearly', mockRequestId);
-      expect(mockReportsService.state).toHaveBeenCalledWith('fs', mockRequestId);
+      expect(mockReportsService.state).toHaveBeenCalledWith(
+        'accounts',
+        mockRequestId,
+      );
+      expect(mockReportsService.state).toHaveBeenCalledWith(
+        'yearly',
+        mockRequestId,
+      );
+      expect(mockReportsService.state).toHaveBeenCalledWith(
+        'fs',
+        mockRequestId,
+      );
     });
 
     it('should handle different status results for different report types', async () => {
@@ -75,9 +84,9 @@ describe('ReportsController', () => {
         requestId: mockRequestId,
         'accounts.csv': 'finished in 0.69',
         'yearly.csv': 'processing',
-        'fs.csv': 'pending'
+        'fs.csv': 'pending',
       });
-      
+
       expect(mockReportsService.state).toHaveBeenCalledTimes(3);
     });
 
@@ -88,7 +97,9 @@ describe('ReportsController', () => {
       mockReportsService.state.mockRejectedValue(new Error(errorMessage));
 
       // Act & Assert
-      await expect(controller.reportStatus(mockRequestId)).rejects.toThrow(errorMessage);
+      await expect(controller.reportStatus(mockRequestId)).rejects.toThrow(
+        errorMessage,
+      );
     });
   });
 
@@ -96,24 +107,31 @@ describe('ReportsController', () => {
     it('should generate reports and return requestId', async () => {
       // Arrange
       const mockRequestId = 'new-report-uuid-1234';
-      mockReportsService.generateIdAndStoreReportEntries.mockResolvedValue(mockRequestId);
+      mockReportsService.generateIdAndStoreReportEntries.mockResolvedValue(
+        mockRequestId,
+      );
 
       // Act
       const result = await controller.generate();
 
       // Assert
       expect(result).toEqual({
-        message: 'Report generation queued - check status with the provided requestId',
-        requestId: mockRequestId
+        message:
+          'Report generation queued - check status with the provided requestId',
+        requestId: mockRequestId,
       });
-      
-      expect(mockReportsService.generateIdAndStoreReportEntries).toHaveBeenCalledTimes(1);
+
+      expect(
+        mockReportsService.generateIdAndStoreReportEntries,
+      ).toHaveBeenCalledTimes(1);
     });
 
     it('should propagate errors from generateIdAndStoreReportEntries', async () => {
       // Arrange
       const errorMessage = 'Failed to generate report';
-      mockReportsService.generateIdAndStoreReportEntries.mockRejectedValue(new Error(errorMessage));
+      mockReportsService.generateIdAndStoreReportEntries.mockRejectedValue(
+        new Error(errorMessage),
+      );
 
       // Act & Assert
       await expect(controller.generate()).rejects.toThrow(errorMessage);

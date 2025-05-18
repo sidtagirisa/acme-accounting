@@ -27,13 +27,13 @@ describe('ReportsService', () => {
 
       // Check if all reports were marked as completed in the database
       const accountsReport = await Report.findOne({
-        where: { requestId, type: ReportType.accounts }
+        where: { requestId, type: ReportType.accounts },
       });
       const yearlyReport = await Report.findOne({
-        where: { requestId, type: ReportType.yearly }
+        where: { requestId, type: ReportType.yearly },
       });
       const fsReport = await Report.findOne({
-        where: { requestId, type: ReportType.fs }
+        where: { requestId, type: ReportType.fs },
       });
 
       // Verify all reports exist
@@ -48,13 +48,19 @@ describe('ReportsService', () => {
 
       // Verify output paths
       const expectedOutputDir = path.join('out', requestId);
-      expect(accountsReport!.outputPath).toBe(`${expectedOutputDir}/accounts.csv`);
+      expect(accountsReport!.outputPath).toBe(
+        `${expectedOutputDir}/accounts.csv`,
+      );
       expect(yearlyReport!.outputPath).toBe(`${expectedOutputDir}/yearly.csv`);
       expect(fsReport!.outputPath).toBe(`${expectedOutputDir}/fs.csv`);
 
       // Check if the files exist on the file system
-      const accountsFileExists = await fileExists(`${expectedOutputDir}/accounts.csv`);
-      const yearlyFileExists = await fileExists(`${expectedOutputDir}/yearly.csv`);
+      const accountsFileExists = await fileExists(
+        `${expectedOutputDir}/accounts.csv`,
+      );
+      const yearlyFileExists = await fileExists(
+        `${expectedOutputDir}/yearly.csv`,
+      );
       const fsFileExists = await fileExists(`${expectedOutputDir}/fs.csv`);
 
       expect(accountsFileExists).toBe(true);

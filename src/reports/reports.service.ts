@@ -1,5 +1,4 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import fs from 'fs';
 import fsPromises from 'fs/promises';
 import path from 'path';
 import { performance } from 'perf_hooks';
@@ -8,7 +7,6 @@ import { Report, ReportStatus, ReportType } from '../../db/models/Report';
 
 @Injectable()
 export class ReportsService implements OnModuleInit {
-  
   private isProcessing = false;
   // choosing a reasonable interval to avoid overloading the system, ideally this should be a seperate job processing reports
   // in a queue system, but for simplicity, I choose a polling mechanism
@@ -22,11 +20,16 @@ export class ReportsService implements OnModuleInit {
   }
 
   private startPolling() {
-    setInterval(async () => {
-      await this.processPendingReports();
+    setInterval(() => {
+      // Wrap the async call in a non-async function
+      this.processPendingReports().catch((error) => {
+        console.error('Error in polling process:', error);
+      });
     }, this.pollingInterval);
-    
-    console.log('Report processing service started. Polling for pending reports...');
+
+    console.log(
+      'Report processing service started. Polling for pending reports...',
+    );
   }
 
   private async processPendingReports() {
@@ -36,18 +39,20 @@ export class ReportsService implements OnModuleInit {
 
     try {
       this.isProcessing = true;
-      
+
       const pendingReports = await Report.findAll({
         attributes: ['requestId', 'type'],
         where: { status: ReportStatus.pending },
         order: [['createdAt', 'ASC']],
-        limit: 10 // Process only 10 reports in each polling cycle to avoid overloading the system
+        limit: 10, // Process only 10 reports in each polling cycle to avoid overloading the system
       });
 
       if (pendingReports && pendingReports.length > 0) {
         for (const report of pendingReports) {
           const { requestId, type } = report;
-          console.log(`Processing report type: ${type} for requestId: ${requestId}`);
+          console.log(
+            `Processing report type: ${type} for requestId: ${requestId}`,
+          );
           await this.processReport(requestId, type);
         }
       }
@@ -58,9 +63,9 @@ export class ReportsService implements OnModuleInit {
     }
   }
 
-  private async processReport(requestId: string, type: string) {
+  private async processReport(requestId: string, type: ReportType) {
     try {
-      switch(type) {
+      switch (type) {
         case ReportType.accounts:
           await this.accounts(requestId);
           break;
@@ -71,18 +76,23 @@ export class ReportsService implements OnModuleInit {
           await this.fs(requestId);
           break;
         default:
-          console.error(`Unknown report type: ${type}`);
+          console.error(`Unknown report type: ${String(type)}`);
       }
-    } catch (error) {
-      console.error(`Error processing report type ${type} for requestId ${requestId}:`, error);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error(
+        `Error processing report type ${String(type)} for requestId ${requestId}:`,
+        error,
+      );
       await Report.update(
         {
           status: ReportStatus.error,
-          errorMessage: error.message
+          errorMessage,
         },
-        { 
-          where: { requestId, type }
-        }
+        {
+          where: { requestId, type },
+        },
       );
     }
   }
@@ -91,50 +101,50 @@ export class ReportsService implements OnModuleInit {
     const report = await Report.findOne({
       where: {
         requestId,
-        type: scope
-      }
+        type: scope,
+      },
     });
-    
+
     if (report) {
-      return report.status === ReportStatus.completed 
-        ? `finished in ${((report.processingTimeMs || 0) / 1000).toFixed(2)}` 
+      return report.status === ReportStatus.completed
+        ? `finished in ${((report.processingTimeMs || 0) / 1000).toFixed(2)}`
         : report.status;
     }
-    
+
     return 'not found';
   }
-  
-  async generateIdAndStoreReportEntries() {
+
+  async generateIdAndStoreReportEntries(): Promise<string> {
     const requestId = uuidv4();
-    
+
     // Create report entries in database for each report type
     await Promise.all([
       Report.create({
         requestId,
         type: ReportType.accounts,
-        status: ReportStatus.pending
+        status: ReportStatus.pending,
       }),
       Report.create({
         requestId,
         type: ReportType.yearly,
-        status: ReportStatus.pending
+        status: ReportStatus.pending,
       }),
       Report.create({
         requestId,
         type: ReportType.fs,
-        status: ReportStatus.pending
-      })
+        status: ReportStatus.pending,
+      }),
     ]);
-    
+
     return requestId;
   }
 
   async accounts(requestId: string) {
     await Report.update(
       { status: ReportStatus.processing },
-      { 
-        where: { requestId, type: ReportType.accounts } 
-      }
+      {
+        where: { requestId, type: ReportType.accounts },
+      },
     );
 
     const start = performance.now();
@@ -146,14 +156,17 @@ export class ReportsService implements OnModuleInit {
 
     try {
       await fsPromises.access(outputDir);
-    } catch (error) {
+    } catch {
       await fsPromises.mkdir(outputDir, { recursive: true });
     }
 
     const files = await fsPromises.readdir(tmpDir);
     for (const file of files) {
       if (file.endsWith('.csv')) {
-        const fileContent = await fsPromises.readFile(path.join(tmpDir, file), 'utf-8');
+        const fileContent = await fsPromises.readFile(
+          path.join(tmpDir, file),
+          'utf-8',
+        );
         const lines = fileContent.trim().split('\n');
         for (const line of lines) {
           const [, account, , debit, credit] = line.split(',');
@@ -170,28 +183,28 @@ export class ReportsService implements OnModuleInit {
       output.push(`${account},${balance.toFixed(2)}`);
     }
     await fsPromises.writeFile(outputFile, output.join('\n'));
-    
+
     const processingTime = Math.round(performance.now() - start);
     await Report.update(
       {
         status: ReportStatus.completed,
         processingTimeMs: processingTime,
-        outputPath: outputFile
+        outputPath: outputFile,
       },
-      { 
-        where: { requestId, type: ReportType.accounts }
-      }
+      {
+        where: { requestId, type: ReportType.accounts },
+      },
     );
   }
 
   async yearly(requestId: string) {
     await Report.update(
       { status: ReportStatus.processing },
-      { 
-        where: { requestId, type: ReportType.yearly }
-      }
+      {
+        where: { requestId, type: ReportType.yearly },
+      },
     );
-  
+
     const start = performance.now();
 
     const tmpDir = 'tmp';
@@ -201,14 +214,17 @@ export class ReportsService implements OnModuleInit {
 
     try {
       await fsPromises.access(outputDir);
-    } catch (error) {
+    } catch {
       await fsPromises.mkdir(outputDir, { recursive: true });
     }
 
     const files = await fsPromises.readdir(tmpDir);
     for (const file of files) {
       if (file.endsWith('.csv') && file !== 'yearly.csv') {
-        const fileContent = await fsPromises.readFile(path.join(tmpDir, file), 'utf-8');
+        const fileContent = await fsPromises.readFile(
+          path.join(tmpDir, file),
+          'utf-8',
+        );
         const lines = fileContent.trim().split('\n');
         for (const line of lines) {
           const [date, account, , debit, credit] = line.split(',');
@@ -230,28 +246,28 @@ export class ReportsService implements OnModuleInit {
         output.push(`${year},${cashByYear[year].toFixed(2)}`);
       });
     await fsPromises.writeFile(outputFile, output.join('\n'));
-    
+
     const processingTime = Math.round(performance.now() - start);
     await Report.update(
       {
         status: ReportStatus.completed,
         processingTimeMs: processingTime,
-        outputPath: outputFile
+        outputPath: outputFile,
       },
-      { 
-        where: { requestId, type: ReportType.yearly }
-      }
+      {
+        where: { requestId, type: ReportType.yearly },
+      },
     );
   }
 
   async fs(requestId: string) {
     await Report.update(
       { status: ReportStatus.processing },
-      { 
-        where: { requestId, type: ReportType.fs }
-      }
+      {
+        where: { requestId, type: ReportType.fs },
+      },
     );
-    
+
     const start = performance.now();
 
     const tmpDir = 'tmp';
@@ -291,7 +307,7 @@ export class ReportsService implements OnModuleInit {
 
     try {
       await fsPromises.access(outputDir);
-    } catch (error) {
+    } catch {
       await fsPromises.mkdir(outputDir, { recursive: true });
     }
 
@@ -306,13 +322,16 @@ export class ReportsService implements OnModuleInit {
     const files = await fsPromises.readdir(tmpDir);
     for (const file of files) {
       if (file.endsWith('.csv') && file !== 'fs.csv') {
-        const fileContent = await fsPromises.readFile(path.join(tmpDir, file), 'utf-8');
+        const fileContent = await fsPromises.readFile(
+          path.join(tmpDir, file),
+          'utf-8',
+        );
         const lines = fileContent.trim().split('\n');
 
         for (const line of lines) {
           const [, account, , debit, credit] = line.split(',');
 
-          if (balances.hasOwnProperty(account)) {
+          if (account in balances) {
             balances[account] +=
               parseFloat(String(debit || 0)) - parseFloat(String(credit || 0));
           }
@@ -374,17 +393,17 @@ export class ReportsService implements OnModuleInit {
       `Assets = Liabilities + Equity, ${totalAssets.toFixed(2)} = ${(totalLiabilities + totalEquity).toFixed(2)}`,
     );
     await fsPromises.writeFile(outputFile, output.join('\n'));
-    
+
     const processingTime = Math.round(performance.now() - start);
     await Report.update(
       {
         status: ReportStatus.completed,
         processingTimeMs: processingTime,
-        outputPath: outputFile
+        outputPath: outputFile,
       },
-      { 
-        where: { requestId, type: ReportType.fs }
-      }
+      {
+        where: { requestId, type: ReportType.fs },
+      },
     );
   }
 }

@@ -177,7 +177,7 @@ describe('TicketsController', () => {
 
       it('prevents creating duplicate open registrationAddressChange tickets', async () => {
         const company = await Company.create({ name: 'test' });
-        const user = await User.create({
+        await User.create({
           name: 'Test User',
           role: UserRole.corporateSecretary,
           companyId: company.id,
@@ -264,21 +264,21 @@ describe('TicketsController', () => {
 
       it('resolves all other open tickets when creating a strikeOff ticket', async () => {
         const company = await Company.create({ name: 'test' });
-        
+
         // Create necessary users
-        const accountant = await User.create({
+        await User.create({
           name: 'Test Accountant',
           role: UserRole.accountant,
           companyId: company.id,
         });
-        
-        const secretary = await User.create({
+
+        await User.create({
           name: 'Test Secretary',
           role: UserRole.corporateSecretary,
           companyId: company.id,
         });
-        
-        const director = await User.create({
+
+        await User.create({
           name: 'Test Director',
           role: UserRole.director,
           companyId: company.id,
@@ -303,17 +303,27 @@ describe('TicketsController', () => {
 
         // Verify previous tickets are resolved
         const tickets = await service.findAll();
-        const openTickets = tickets.filter(t => t.status === TicketStatus.open);
-        const resolvedTickets = tickets.filter(t => t.status === TicketStatus.resolved);
+        const openTickets = tickets.filter(
+          (t) => t.status === TicketStatus.open,
+        );
+        const resolvedTickets = tickets.filter(
+          (t) => t.status === TicketStatus.resolved,
+        );
 
         // Only the strikeOff ticket should be open
         expect(openTickets.length).toBe(1);
         expect(openTickets[0].type).toBe(TicketType.strikeOff);
-        
+
         // The other two tickets should be resolved
         expect(resolvedTickets.length).toBe(2);
-        expect(resolvedTickets.some(t => t.type === TicketType.managementReport)).toBe(true);
-        expect(resolvedTickets.some(t => t.type === TicketType.registrationAddressChange)).toBe(true);
+        expect(
+          resolvedTickets.some((t) => t.type === TicketType.managementReport),
+        ).toBe(true);
+        expect(
+          resolvedTickets.some(
+            (t) => t.type === TicketType.registrationAddressChange,
+          ),
+        ).toBe(true);
       });
     });
   });
