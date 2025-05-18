@@ -22,7 +22,7 @@ export enum TicketType {
 
 export enum TicketCategory {
   accounting = 'accounting',
-  corporate = 'corporate',
+  corporate = 'registrationAddressChange', // should the value be corporate?
   management = 'management',
 }
 
