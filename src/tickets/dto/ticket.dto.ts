@@ -1,4 +1,8 @@
-import { TicketCategory, TicketStatus, TicketType } from '../../../db/models/Ticket';
+import {
+  TicketCategory,
+  TicketStatus,
+  TicketType,
+} from '../../../db/models/Ticket';
 import { IsEnum, IsInt, IsNotEmpty, IsNumber } from 'class-validator';
 
 export class NewTicketDto {
