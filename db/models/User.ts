@@ -6,12 +6,15 @@ import {
   ForeignKey,
   PrimaryKey,
   AutoIncrement,
+  CreatedAt,
+  UpdatedAt,
 } from 'sequelize-typescript';
 import { Company } from './Company';
 
 export enum UserRole {
   accountant = 'accountant',
   corporateSecretary = 'corporateSecretary',
+  director = 'director',
 }
 
 @Table({ tableName: 'users' })
@@ -32,4 +35,10 @@ export class User extends Model {
 
   @BelongsTo(() => Company)
   company: Company;
+
+  @CreatedAt
+  declare createdAt: Date;
+  
+  @UpdatedAt
+  declare updatedAt: Date;
 }
