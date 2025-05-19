@@ -26,7 +26,11 @@ export class TicketsService {
       category: TicketCategory.corporate,
       userRole: UserRole.corporateSecretary,
       backupUserRole: UserRole.director,
-    }
+    },
+    [TicketType.strikeOff]: {
+      category: TicketCategory.management,
+      userRole: UserRole.director
+    },
   };
 
   getTicketTypeMapping(type: TicketType): TicketTypeMapping {
@@ -104,18 +108,42 @@ export class TicketsService {
     }
   }
 
+  private async resolveAllActiveTickets(companyId: number): Promise<void> {
+    await Ticket.update(
+      { status: TicketStatus.resolved },
+      { 
+        where: { 
+          companyId, 
+          status: TicketStatus.open 
+        } 
+      }
+    );
+  }
+
   async createTicket(type: TicketType, companyId: number): Promise<Ticket> {
     await this.checkForDuplicateTicket(type, companyId);
     
     const { category } = this.getTicketTypeMapping(type);
     const assignee = await this.findAssignee(type, companyId);
-    
-    return await Ticket.create({
-      companyId,
-      assigneeId: assignee.id,
-      category,
-      type,
-      status: TicketStatus.open,
-    });
-  }
+    const transaction = await Ticket.sequelize!.transaction();
+    try {
+      if (type === TicketType.strikeOff) {
+        await this.resolveAllActiveTickets(companyId);
+      }
+      // NOTE: There's ambiguity in the requirements about whether the strikeOff ticket itself
+      // should also be resolved immediately. Currently I am keeping it open.
+      const ticket = await Ticket.create({
+          companyId,
+          assigneeId: assignee.id,
+          category,
+          type,
+          status: TicketStatus.open,
+      }, { transaction });
+      await transaction.commit();
+      return ticket;
+    } catch (error) {
+        await transaction.rollback();
+        throw error;
+      }
+    }
 }
